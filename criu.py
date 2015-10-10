@@ -73,13 +73,28 @@ class criu(ShutItModule):
 		# shutit.fail(msg)                   - Fail the program and exit with status 1
 		# 
 		shutit.send('rm -rf /tmp/vg-1')
-		shutit.send('vagrant box add https://atlas.hashicorp.com/kimh/boxes/criu')
+		box = shutit.send_and_get_output('vagrant box list 2>/dev/null | grep kimh/criu')
+		if box == '':
+			shutit.send('vagrant box add https://atlas.hashicorp.com/kimh/boxes/criu',note='Download the criu vagrant box')
 		shutit.send('mkdir /tmp/vg-1')
 		shutit.send('cd /tmp/vg-1')
 		shutit.send('vagrant init kimh/criu')
-		shutit.send('vagrant up')
-		shutit.send('vagrant ssh')
+		shutit.send('vagrant up',note='Set up the criu VM')
+		shutit.login(command='vagrant ssh',note='Log into the criu VM')
+		shutit.send('docker run -d --name criu busybox sleep 999d',note='Start a container which runs for 999 days, and get its id')
+		shutit.send('docker ps',note='Confirm it is now running')
+		shutit.send('docker checkpoint criu',note='Now we checkpoint that container, which stops it (use --leave-running=true) to leave it running.')
+		shutit.send('docker ps',note='Confirm it is NOT running')
+		shutit.send('docker restore criu',note='Restore the container with the process running')
+		shutit.send('docker ps',note='It is running again!')
+		shutit.send('docker rm -f criu',note='Now a more sophisticated example, where we stop a process with state and restore it.')
+		shutit.send('''docker run --name np --rm busybox:latest /bin/sh -c 'i=0; while true; do echo -n "$i "; i=$(expr $i + 1); sleep 1; done' &''',note='Start a container that outputs an incrementing number per second')
+		shutit.send('sleep 10',note='wait 10 seconds')
+		shutit.send('docker checkpoint np',note='Stop the container and save its state.')
+		shutit.send('docker restore np',note='Restore the state where we were')
 		shutit.pause_point('play with criu')
+		# TODO: container migration: http://blog.circleci.com/checkpoint-and-restore-docker-container-with-criu/
+		shutit.logout()
 		return True
 
 	def get_config(self, shutit):
