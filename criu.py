@@ -91,6 +91,7 @@ class criu(ShutItModule):
 		shutit.send('''docker run --name np --rm busybox:latest /bin/sh -c 'i=0; while true; do echo -n "$i "; i=$(expr $i + 1); sleep 1; done' &''',note='Start a container that outputs an incrementing number per second')
 		shutit.send('sleep 10',note='wait 10 seconds')
 		shutit.send('docker checkpoint np',note='Stop the container and save its state.')
+		shutit.send('sleep 10',note='wait 10 seconds')
 		shutit.send('docker restore np',note='Restore the state where we were')
 		shutit.pause_point('play with criu')
 		# TODO: container migration: http://blog.circleci.com/checkpoint-and-restore-docker-container-with-criu/
