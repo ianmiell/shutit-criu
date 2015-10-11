@@ -72,30 +72,34 @@ class criu(ShutItModule):
 		#                                    - Get input from user and return output
 		# shutit.fail(msg)                   - Fail the program and exit with status 1
 		# 
-		shutit.send('rm -rf /tmp/vg-1')
+		shutit.send('rm -rf /tmp/vg-*')
 		box = shutit.send_and_get_output('vagrant box list 2>/dev/null | grep kimh/criu')
 		if box == '':
 			shutit.send('vagrant box add https://atlas.hashicorp.com/kimh/boxes/criu',note='Download the criu vagrant box')
-		shutit.send('mkdir /tmp/vg-1')
-		shutit.send('cd /tmp/vg-1')
-		shutit.send('vagrant init kimh/criu')
-		shutit.send('vagrant up',note='Set up the criu VM')
+		shutit.send('mkdir /tmp/vg-1 && cd /tmp/vg-1 && vagrant init kimh/criu && vagrant up',note='Set up the criu VM')
 		shutit.login(command='vagrant ssh',note='Log into the criu VM')
 		shutit.send('docker run -d --name criu busybox sleep 999d',note='Start a container which runs for 999 days, and get its id')
 		shutit.send('docker ps',note='Confirm it is now running')
 		shutit.send('docker checkpoint criu',note='Now we checkpoint that container, which stops it (use --leave-running=true) to leave it running.')
-		shutit.send('docker ps',note='Confirm it is NOT running')
+		shutit.send('docker ps',note='Confirm it is now NOT running')
 		shutit.send('docker restore criu',note='Restore the container with the process running')
 		shutit.send('docker ps',note='It is running again!')
 		shutit.send('docker rm -f criu',note='Now a more sophisticated example, where we stop a process with state and restore it.')
-		shutit.send('''docker run --name np --rm busybox:latest /bin/sh -c 'i=0; while true; do echo -n "$i "; i=$(expr $i + 1); sleep 1; done' &''',note='Start a container that outputs an incrementing number per second')
-		shutit.send('sleep 10',note='wait 10 seconds')
+		shutit.send('''docker run --name np --rm busybox:latest /bin/sh -c 'i=0; while true; do echo -n "$i "; i=$(expr $i + 1) | tee /tmp/output; sleep 1; done' &''',note='Start a container that outputs an incrementing number per second, and writes it to /tmp/output')
+		shutit.send('sleep 10',note='wait 10 seconds - hit CTRL-] now!')
 		shutit.send('docker checkpoint np',note='Stop the container and save its state.')
-		shutit.send('sleep 10',note='wait 10 seconds')
+		shutit.send('sleep 10',note='wait 10 seconds - hit CTRL-] now!')
 		shutit.send('docker restore np',note='Restore the state where we were')
-		shutit.pause_point('play with criu')
-		# TODO: container migration: http://blog.circleci.com/checkpoint-and-restore-docker-container-with-criu/
-		shutit.logout()
+		shutit.logout(note='Next we log out of the first VM.')
+		shutit.send('mkdir -p /tmp/vg-2 && cd /tmp/vg-2 && vagrant init kimh/criu && vagrant up',note='Logged out. Now Initialise second VM and bring it up')
+		shutit.login(command="""vagrant ssh -- 'docker run --name=foo -d busybox tail -f /dev/null && docker rm -f foo'""",note='Next command required due to a bug in CRIU')
+		shutit.send('curl -L -o /tmp/docker-migrate.sh https://gist.githubusercontent.com/kimh/79f7bcb195466acea39a/raw/ca0965d90c850dcbe54654a6002678fff333d408 && chmod +x /tmp/docker-migrate.sh',note='Download the helper migrate script')
+		shutit.send('/tmp/docker-migrate.sh np /tmp/vg-1 /tmp/vg-2',note='Now migrate the container from vg-1 to vg-2')
+		shutit.send('cd /tmp/vg-2 && vagrant ssh',note='Now visit the second VM')
+		shutit.send('docker ps',note='Check that np is now running here')
+		shutit.send('docker exec np cat /tmp/output',note='cat the file it writes to')
+		shutit.send('docker exec np cat /tmp/output',note='cat it again to ')
+		shutit.pause_point('')
 		return True
 
 	def get_config(self, shutit):
