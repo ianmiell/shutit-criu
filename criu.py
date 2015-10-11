@@ -85,7 +85,7 @@ class criu(ShutItModule):
 		shutit.send('docker restore criu',note='Restore the container with the process running')
 		shutit.send('docker ps',note='It is running again!')
 		shutit.send('docker rm -f criu',note='Now a more sophisticated example, where we stop a process with state and restore it.')
-		shutit.send('''docker run --name np --rm busybox:latest /bin/sh -c 'i=0; while true; do echo -n "$i "; i=$(expr $i + 1) | tee /tmp/output; sleep 1; done' &''',note='Start a container that outputs an incrementing number per second, and writes it to /tmp/output')
+		shutit.send('''docker run --name np --rm busybox:latest /bin/sh -c 'i=0; while true; do echo -n "$i " | tee /tmp/output; i=$(expr $i + 1); sleep 1; done' &''',note='Start a container that outputs an incrementing number per second, and writes it to /tmp/output')
 		shutit.send('sleep 10',note='wait 10 seconds - hit CTRL-] now!')
 		shutit.send('docker checkpoint np',note='Stop the container and save its state.')
 		shutit.send('sleep 10',note='wait 10 seconds - hit CTRL-] now!')
