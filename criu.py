@@ -95,10 +95,11 @@ class criu(ShutItModule):
 		shutit.login(command="""vagrant ssh -- 'docker run --name=foo -d busybox tail -f /dev/null && docker rm -f foo'""",note='Next command required due to a bug in CRIU')
 		shutit.send('curl -L -o /tmp/docker-migrate.sh https://gist.githubusercontent.com/kimh/79f7bcb195466acea39a/raw/ca0965d90c850dcbe54654a6002678fff333d408 && chmod +x /tmp/docker-migrate.sh',note='Download the helper migrate script')
 		shutit.send('/tmp/docker-migrate.sh np /tmp/vg-1 /tmp/vg-2',note='Now migrate the container from vg-1 to vg-2')
-		shutit.send('cd /tmp/vg-2 && vagrant ssh',note='Now visit the second VM')
+		shutit.send('cd /tmp/vg-2')
+		shutit.login(command='vagrant ssh',note='Now visit the second VM')
 		shutit.send('docker ps',note='Check that np is now running here')
 		shutit.send('docker exec np cat /tmp/output',note='cat the file it writes to')
-		shutit.send('docker exec np cat /tmp/output',note='cat it again to ')
+		shutit.send('docker exec np cat /tmp/output',note='cat it again to show it is still running')
 		shutit.pause_point('')
 		return True
 
